@@ -1,0 +1,101 @@
+#!/bin/bash
+
+# https://stackoverflow.com/a/70735935
+function capture() {
+    {
+        IFS=$'\n' read -r -d '' stdout
+        IFS=$'\n' read -r -d '' stderr
+        IFS=$'\n' read -r -d '' rc
+    } < <((
+        printf '\0%s\0%d\0' \
+            "$(
+                (
+                    (
+                        (
+                            {
+                                shift 2
+                                "${@}"
+                                echo "${?}" 1>&3-
+                            } | tr -d '\0' 1>&4-
+                        ) 4>&2- 2>&1- | tr -d '\0' 1>&4-
+                    ) 3>&1- | exit "$(cat)"
+                ) 4>&1-
+            )" \
+            "${?}" 1>&2
+    ) 2>&1)
+}
+
+# https://technekey.com/ansible-custom-module-using-bash-script/
+function respond() {
+    failed="$(test "${rc}" != 0 && echo "true" || echo "false")"
+
+    printf '{"changed":%s,"failed":%s,"rc":%d,"msg":"%s","stdout":"%s","stderr":"%s"}\n' \
+        "${changed}" \
+        "${failed}" \
+        "${rc}" \
+        "${msg//\"/\\\"}" \
+        "${stdout//\"/\\\"}" \
+        "${stderr//\"/\\\"}"
+
+    exit "${rc}"
+}
+
+function assert_var() {
+    local var="${1}"
+
+    test -n "${!var}" || {
+        msg="missing arg: ${var}"
+        rc=5
+        respond
+    }
+}
+
+function ping() {
+    echo "pong"
+}
+
+function hello_world() {
+    echo "Hello, ${user_name-World}!"
+}
+
+function ls_dir() {
+    ls -l "${dir}"
+}
+
+function main() {
+    source $1
+
+    export changed="false"
+    export stdout=""
+    export stderr=""
+    export msg=""
+    export rc=0
+
+    assert_var action
+
+    case "${action}" in
+
+    ping)
+        capture ping
+        ;;
+
+    hello_world)
+        capture hello_world
+        ;;
+
+    ls_dir)
+        assert_var dir
+        capture ls_dir
+        ;;
+
+    *)
+        msg="action unknown: ${action}"
+        rc=3
+        ;;
+
+    esac
+
+    respond
+}
+
+main "$1"

@@ -14,6 +14,11 @@
             just
             bash
             ansible
+            nixpkgs-fmt
+            (bats.withLibraries (lib: with lib; [
+              bats-support
+              bats-assert
+            ]))
           ];
         };
       }
