@@ -38,3 +38,11 @@ setup() {
     run $BIN <(echo 'action=ls_dir dir=/tmp')
     assert_success
 }
+
+@test "always json" {
+    run $BIN <(echo 'action=ping')
+    jq . >/dev/null <<<"$output"
+
+    run $BIN <(echo 'action=ls_dir')
+    jq . >/dev/null <<<"$output"
+}

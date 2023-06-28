@@ -11,6 +11,7 @@
       {
         devShell = pkgs.mkShell {
           buildInputs = with pkgs; [
+            jq
             just
             bash
             ansible
